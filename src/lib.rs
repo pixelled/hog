@@ -56,18 +56,15 @@ impl PureStrategy {
             self.export("learn.strat");
         }
         for total in (0..99u32).rev() {
-            let mut other = 0;
-            while total - other >= 0 {
-                let (best_rolls, best_rate) = (0..11u32).into_par_iter().map(|rolls| {
-                    let mut test = self.clone();
-                    test.set(rolls, total - other, other);
+            (0..(total + 1)).into_par_iter().map(|other| (total - other, other)).map(|(self_score, oppo_score)| {
+                let mut test = self.clone();
+                let (best_rolls, best_rate) = (0..11u32).map(|rolls| {
+                    test.set(rolls, self_score, oppo_score);
                     (rolls, Game::new().win_rate(&mut test, base))
                 }).max_by(|(_, rate1), (_, rate2)| rate1.partial_cmp(rate2).unwrap()).unwrap();
-                self.set(best_rolls, total - other, other);
-                println!("Best rate {} at ({}, {}) by rolling {}", best_rate, total - other, other, best_rolls);
-//                *base = self.clone();
-                if total == other { break; } else { other += 1 }
-            }
+                println!("Best rate {} at ({}, {}) by rolling {}", best_rate, self_score, oppo_score, best_rolls);
+                (best_rolls, self_score, oppo_score)
+            }).collect::<Vec<_>>().drain(..).for_each(|(rolls, self_score, oppo_score)| self.set(rolls, self_score, oppo_score));
             self.export("learn.strat");
         }
     }
@@ -87,6 +84,7 @@ impl Strategy for PureStrategy {
     }
 }
 
+#[derive(Clone)]
 pub struct ImpureStrategy(State<u32>);
 
 impl ImpureStrategy {
@@ -178,6 +176,10 @@ impl ImpureStrategy {
     pub fn get(&self, self_score: u32, oppo_score: u32, self_prev: u32, oppo_prev: u32) -> u32 {
         self.0.get(self_score, oppo_score, self_prev, oppo_prev, 0)
     }
+
+    pub fn set(&mut self, val: u32, self_score: u32, oppo_score: u32, self_prev: u32, oppo_prev: u32) {
+        self.0.set(val, self_score, oppo_score, self_prev, oppo_prev, 0);
+    }
 }
 
 impl Strategy for ImpureStrategy {
@@ -190,6 +192,7 @@ impl Strategy for ImpureStrategy {
     }
 }
 
+#[derive(Clone)]
 pub struct State<T: Clone>(Vec<T>);
 
 impl<T: Clone> State<T> {
