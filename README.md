@@ -2,4 +2,4 @@
 
 Use DP and Hill Climbing to update the matrix.
 
-**FALL 19 3RD PLACE**
+**FALL 2019 3RD PLACE**
